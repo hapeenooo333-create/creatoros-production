@@ -1,0 +1,6 @@
+{
+  "name": "CreatorOS",
+  "description": "Production-ready AI SaaS platform for content creation, project management, and cross-channel optimization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
