@@ -25,8 +25,8 @@ import {
   CheckCircle,
   Activity
 } from 'lucide-react';
-import { HistoryItem } from '../types';
-import { generateDemoContent, BrandVoice } from '../lib/demoGenerator';
+import { HistoryItem } from './types';
+import { generateDemoContent, BrandVoice } from './demoGenerator';
 
 interface AICommandCenterProps {
   token: string | null;

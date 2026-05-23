@@ -12,7 +12,7 @@ import {
   BookOpen,
   Calendar
 } from 'lucide-react';
-import { HistoryItem } from '../types';
+import { HistoryItem } from './types';
 
 interface HistoryProjectsProps {
   token: string | null;

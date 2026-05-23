@@ -14,8 +14,8 @@ import {
   Eye,
   Info
 } from 'lucide-react';
-import { WorkflowConfig, HistoryItem } from '../types';
-import { generateDemoContent } from '../lib/demoGenerator';
+import { WorkflowConfig, HistoryItem } from './types';
+import { generateDemoContent } from './demoGenerator';
 
 interface AIGeneratorProps {
   token: string | null;

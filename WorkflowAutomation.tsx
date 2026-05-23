@@ -15,7 +15,7 @@ import {
   Eye,
   Settings
 } from 'lucide-react';
-import { AutomationTrigger } from '../types';
+import { AutomationTrigger } from './types';
 
 interface WorkflowAutomationProps {
   onShowToast: (text: string, type: 'success' | 'info' | 'warning' | 'error') => void;

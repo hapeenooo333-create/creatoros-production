@@ -14,7 +14,7 @@ import {
   Sliders,
   Sparkle
 } from 'lucide-react';
-import { HistoryItem, User } from '../types';
+import { HistoryItem, User } from './types';
 
 interface AnalyticsOverviewProps {
   history: HistoryItem[];

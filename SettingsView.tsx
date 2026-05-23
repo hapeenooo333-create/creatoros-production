@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Database, Sparkles, Key, CheckCircle, AlertTriangle, AlertCircle, RefreshCw, Server, Send } from 'lucide-react';
-import { User, APIStatus } from '../types';
+import { User, APIStatus } from './types';
 
 interface SettingsViewProps {
   user: User;

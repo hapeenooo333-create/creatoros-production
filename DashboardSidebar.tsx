@@ -20,7 +20,7 @@ import {
   TrendingUp,
   Grid
 } from 'lucide-react';
-import { User } from '../types';
+import { User } from './types';
 
 interface DashboardSidebarProps {
   currentTab: string;

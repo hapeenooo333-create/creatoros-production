@@ -14,7 +14,7 @@ import {
   CheckCircle,
   HelpCircle
 } from 'lucide-react';
-import { User as UserType } from '../types';
+import { User as UserType } from './types';
 
 interface UserProfileProps {
   user: UserType;

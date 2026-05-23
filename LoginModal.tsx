@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, Eye, EyeOff, Loader2, ArrowRight, ShieldCheck, Mail, Lock, User as UserIcon } from 'lucide-react';
-import { User } from '../types';
+import { User } from './types';
 
 interface LoginModalProps {
   onLoginSuccess: (user: User, token: string) => void;

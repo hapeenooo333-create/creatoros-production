@@ -30,8 +30,8 @@ import {
   Sliders,
   Sparkle
 } from 'lucide-react';
-import { HistoryItem } from '../types';
-import { generateDemoContent, BrandVoice } from '../lib/demoGenerator';
+import { HistoryItem } from './types';
+import { generateDemoContent, BrandVoice } from './demoGenerator';
 
 interface SpecializedGeneratorsProps {
   token: string | null;
