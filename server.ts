@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import AdmZip from "adm-zip";
+import { exec } from "child_process";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
@@ -61,46 +62,43 @@ localHistory.push({
   createdAt: new Date(Date.now() - 7200000).toISOString()
 });
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+const app = express();
+app.use(express.json());
 
-  app.use(express.json());
-
-  // Setup Supabase database bridge if environment variable is present
-  const isSupabaseConfigured = !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
-  let supabaseClient: any = null;
-  if (isSupabaseConfigured) {
-    try {
-      supabaseClient = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
-      console.log("Supabase service initialized successfully.");
-    } catch (err) {
-      console.error("Failed to initialize Supabase client:", err);
-    }
-  } else {
-    console.log("Supabase variables not configured in .env. Falling back to secure express memory core.");
+// Setup Supabase database bridge if environment variable is present
+const isSupabaseConfigured = !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+let supabaseClient: any = null;
+if (isSupabaseConfigured) {
+  try {
+    supabaseClient = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
+    console.log("Supabase service initialized successfully.");
+  } catch (err) {
+    console.error("Failed to initialize Supabase client:", err);
   }
+} else {
+  console.log("Supabase variables not configured in .env. Falling back to secure express memory core.");
+}
 
-  // Setup Gemini AI client lazy-loaded or safe key guards
-  const isGeminiConfigured = !!process.env.GEMINI_API_KEY;
-  let ai: GoogleGenAI | null = null;
-  if (isGeminiConfigured) {
-    try {
-      ai = new GoogleGenAI({
-        apiKey: process.env.GEMINI_API_KEY,
-        httpOptions: {
-          headers: {
-            'User-Agent': 'aistudio-build',
-          }
+// Setup Gemini AI client lazy-loaded or safe key guards
+const isGeminiConfigured = !!process.env.GEMINI_API_KEY;
+let ai: GoogleGenAI | null = null;
+if (isGeminiConfigured) {
+  try {
+    ai = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
         }
-      });
-      console.log("Gemini client initialized successfully.");
-    } catch (err) {
-      console.error("Failed to initialize Gemini AI client:", err);
-    }
-  } else {
-    console.warn("GEMINI_API_KEY environment variable is missing.");
+      }
+    });
+    console.log("Gemini client initialized successfully.");
+  } catch (err) {
+    console.error("Failed to initialize Gemini AI client:", err);
   }
+} else {
+  console.warn("GEMINI_API_KEY environment variable is missing.");
+}
 
   // --------------------------------------------------------------------------
   // API ROUTES SECTION (FIRST)
@@ -176,13 +174,81 @@ async function startServer() {
       }
 
       const zipBuffer = zip.toBuffer();
-      res.setHeader("Content-Type", "application/zip");
-      res.setHeader("Content-Disposition", "attachment; filename=creatoros-project.zip");
+      res.setHeader("Content-Type", "application/octet-stream");
+      res.setHeader("Content-Disposition", 'attachment; filename="creatoros-project.zip"');
+      res.setHeader("Content-Transfer-Encoding", "binary");
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
       res.setHeader("Content-Length", zipBuffer.length);
       res.end(zipBuffer);
     } catch (err: any) {
       console.error("Failed to generate project ZIP:", err);
       res.status(500).json({ error: "Failed to generate project ZIP export: " + err.message });
+    }
+  });
+
+  // Complete Direct GitHub Push Endpoint
+  app.post("/api/push-github", async (req, res) => {
+    const { githubToken, repoUrlOrName } = req.body;
+    if (!githubToken || !repoUrlOrName) {
+      return res.status(400).json({ error: "Missing githubToken or repoUrlOrName parameters in request body." });
+    }
+
+    try {
+      let repoPath = repoUrlOrName.trim();
+      if (repoPath.startsWith("https://github.com/")) {
+        repoPath = repoPath.substring("https://github.com/".length);
+      }
+      if (repoPath.endsWith(".git")) {
+        repoPath = repoPath.substring(0, repoPath.length - 4);
+      }
+
+      const parts = repoPath.split("/");
+      if (parts.length !== 2) {
+        return res.status(400).json({ error: "Invalid repository format. Enter 'username/repo' or a full GitHub repository URL." });
+      }
+
+      // Construct authenticated token remote URL
+      const authenticatedUrl = `https://x-access-token:${githubToken}@github.com/${repoPath}.git`;
+
+      // Chain Git command pipeline
+      const cmd = [
+        'git init',
+        'git config user.name "SaaS Creator"',
+        'git config user.email "SaaS-creator@example.com"',
+        'git branch -M main',
+        'git remote remove origin 2>/dev/null || true',
+        `git remote add origin "${authenticatedUrl}"`,
+        'git add .',
+        'git commit -m "Initialize CreatorOS Production Release for Vercel" --allow-empty',
+        'git push -u origin main --force'
+      ].join(" && ");
+
+      exec(cmd, (error, stdout, stderr) => {
+        // Redact the sensitive access token from outputs for safety
+        const redact = (str: string) => str.replace(new RegExp(githubToken, 'g'), '********');
+        const safeStdout = redact(stdout || '');
+        const safeStderr = redact(stderr || '');
+
+        if (error) {
+          console.error("Git Push Failure:", safeStderr);
+          return res.status(500).json({
+            error: "Failed to push CreatorOS code. Please verify your Personal Access Token, permissions, and check if the repository exists.",
+            details: safeStderr || safeStdout
+          });
+        }
+
+        res.json({
+          success: true,
+          message: `Successfully initialized git tracking and force-pushed production structure to repository: https://github.com/${repoPath}`,
+          stdout: safeStdout,
+          stderr: safeStderr
+        });
+      });
+    } catch (err: any) {
+      console.error("Unhandled error during Git upload:", err);
+      res.status(500).json({ error: "Git push worker crashed: " + err.message });
     }
   });
 
@@ -457,23 +523,30 @@ Ensure the response has:
   // --------------------------------------------------------------------------
   // VITE ENTRY & STATIC ASSETS HANDLER (LAST)
   // --------------------------------------------------------------------------
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+  async function startStandaloneServer() {
+    const PORT = 3000;
+    if (process.env.NODE_ENV !== "production" && process.env.VITE_DEV_SERVER !== "true") {
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } else if (process.env.NODE_ENV === "production" && !process.env.VERCEL) {
+      const distPath = path.join(process.cwd(), "dist");
+      app.use(express.static(distPath));
+      app.get("*", (req, res) => {
+        res.sendFile(path.join(distPath, "index.html"));
+      });
+    }
+
+    if (!process.env.VERCEL && process.env.VITE_DEV_SERVER !== "true") {
+      app.listen(PORT, "0.0.0.0", () => {
+        console.log(`CreatorOS Server available and live at http://localhost:${PORT}`);
+      });
+    }
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`CreatorOS Server available and live at http://localhost:${PORT}`);
-  });
-}
+  startStandaloneServer();
 
-startServer();
+export { app };
+export default app;
